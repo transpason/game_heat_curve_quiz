@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ねつとすがた ― 融点・沸点を見つけるゲーム 設計書</title>
+<style>
+  body { max-width: 820px; margin: 0 auto; padding: 32px 20px 64px; font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif; line-height: 1.75; color: #1f2937; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  h2 { font-size: 21px; margin-top: 40px; padding-bottom: 4px; border-bottom: 2px solid #e5e7eb; }
+  h3 { font-size: 17px; margin-top: 24px; }
+  .meta { color: #6b7280; font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 15px; }
+  th, td { border: 1px solid #d5dae2; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f3f5f8; }
+  figure { margin: 16px 0; }
+  figcaption { font-size: 13px; color: #6b7280; text-align: center; }
+  svg { width: 100%; height: auto; display: block; }
+  code { background: #f3f5f8; padding: 1px 5px; border-radius: 4px; }
+  select { font-size: 14px; padding: 3px 6px; border-radius: 6px; border: 1px solid #9aa3b2; background: #fff; max-width: 100%; }
+  select.answered { border-color: #2563eb; background: #eff6ff; }
+  button { font-size: 15px; padding: 6px 14px; border-radius: 6px; border: 1px solid #2563eb; background: #2563eb; color: #fff; cursor: pointer; }
+  #copied { color: #059669; font-size: 14px; margin-left: 8px; }
+  .note { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 8px 12px; font-size: 14px; }
+  .new { background: #ecfdf5; color: #047857; font-size: 12px; padding: 1px 6px; border-radius: 4px; margin-left: 4px; }
+</style>
+</head>
+<body>
+
+<h1>ねつとすがた ― 融点・沸点を見つけるゲーム 設計書</h1>
+<p class="meta">2026-11-23 作成 ・ 同日改訂(ねらいを融点・沸点に絞る/グラフは4択/☆の付け方を変更/Q7〜Q9決定・合意済み) ・ 予定パス: <code>game_state_change/index.html</code> ・ 仮タイトル</p>
+
+<h2>概要</h2>
+<p><strong>融点と沸点がわかる</strong>ようになるためのステージ制ゲーム。物質を温めたり冷やしたりしたときの温度のグラフを4つの中から予想して選び、
+実験シミュレーションで答え合わせする。そのあと結果のグラフから<strong>融点・沸点を自分で読み取る</strong>。
+グラフが平らな間は粒子モデルが「状態が変わっている途中」のようすを見せるので、
+「融点・沸点 = 状態が変わる温度。変わっている間は温度が上がらない」ことを目で確かめられる。</p>
+<table>
+  <tr><th>項目</th><th>内容</th></tr>
+  <tr><td>対象</td><td>中学1年生(理科「身のまわりの物質 ― 状態変化」)。授業・家庭学習の両方</td></tr>
+  <tr><td>形式</td><td>ステージ制(本編8 + 応用2 + おまけ1)。1ステージ2〜3分。☆1〜3で評価</td></tr>
+  <tr><td>端末</td><td>学校配布のタブレット・Chromebook、PC(ブラウザ)。縦・横の両方に対応</td></tr>
+  <tr><td>遊び方の核</td><td>お題を読む → グラフを4択で予想 → 実験で答え合わせ → 融点・沸点を読み取る → ふりかえり1問</td></tr>
+  <tr><td>技術</td><td>HTML + JavaScript + Canvas、外部ライブラリ・ビルドなし(レンズ・シューターと同じ)</td></tr>
+</table>
+
+<h3>学習目標</h3>
+<p>プレイ後に次の4点を説明できる状態を目指す。</p>
+<ol>
+  <li><strong>融点</strong>は固体がとけて液体になる温度、<strong>沸点</strong>は液体が沸騰して気体になる温度。温度のグラフでは<strong>平らな部分</strong>として表れる</li>
+  <li>状態が変わっている間は、加熱し続けても温度は上がらない。加えた熱は粒子の並び方を変える(状態を変える)のに使われる</li>
+  <li>融点・沸点は<strong>物質ごとに決まっている</strong>。量や火の強さを変えても変わらない(変わるのは平らな部分の長さ)。だから融点・沸点で物質を見分けられる</li>
+  <li>融点・沸点がわかれば、ある温度でその物質が<strong>固体・液体・気体のどれか</strong>を判断できる(融点より低い→固体、融点と沸点の間→液体、沸点より高い→気体)</li>
+</ol>
+<p>粒子の数が変わらない(質量は変わらない)ことは画面に「質量 100g」を出し続けて伝えるが、主なねらいからは外す。</p>
+
+<h2>1ステージの流れ</h2>
+<table>
+  <tr><th>段階</th><th>画面で起きること</th><th>ねらい</th></tr>
+  <tr><td>① お題</td><td>実験の条件をカードで提示。例:「−20℃の氷 100g を弱火で加熱。10分間はかる」</td><td>条件(物質・量・火力・初めの温度)を読む</td></tr>
+  <tr><td>② 予想</td><td>4つのグラフから「こうなる」と思うものを選ぶ(下図)</td><td>知識を使って先に考える</td></tr>
+  <tr><td>③ 実験</td><td>左でビーカー・温度計・粒子モデルが動き、右のグラフに本物の線が伸びる。選んだグラフは点線で重ねる。平らな部分では「熱は状態を変えるのに使われています」の吹き出し</td><td>温度が止まる理由を粒子で見る</td></tr>
+  <tr><td>④ 読み取り</td><td>結果のグラフの平らな部分をタップ →「これは融点? 沸点?」と「何℃?」を答える(温度は目盛りから読む。±2℃で正解)。答えた種類と温度がグラフのどれかの平らな部分と合えば正解(タップした部分と別でもよい)。不正解のときは「種類がちがう/温度がずれている/平らな部分がある・ない」の理由と自分の答えを表示</td><td>融点・沸点をグラフから見つける</td></tr>
+  <tr><td>⑤ ふりかえり</td><td>☆評価、選んだグラフが違った場合はどこが違ったかの解説、最後に選択問題を1問</td><td>理由を言葉で選べるようにする</td></tr>
+</table>
+
+<h3>予想画面(4択)</h3>
+<figure>
+<svg viewBox="0 0 760 230" role="img" aria-label="4択の予想画面" font-size="13">
+  <text x="10" y="20" font-size="14" font-weight="600" fill="#1f2937">−20℃の氷を加熱すると、温度はどう変わる?</text>
+  <g font-size="12" fill="#475569">
+    <!-- A -->
+    <rect x="10" y="34" width="175" height="180" rx="8" fill="#fff" stroke="#2563eb" stroke-width="2.5"/>
+    <text x="20" y="54" font-weight="600" fill="#2563eb">A</text>
+    <line x1="35" y1="190" x2="175" y2="190" stroke="#334155"/><line x1="35" y1="190" x2="35" y2="64" stroke="#334155"/>
+    <text x="22" y="164">0</text><line x1="35" y1="160" x2="175" y2="160" stroke="#e5e7eb"/>
+    <polyline points="35,182 60,160 120,160 170,90" fill="none" stroke="#ef4444" stroke-width="3"/>
+    <!-- B -->
+    <rect x="200" y="34" width="175" height="180" rx="8" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="210" y="54" font-weight="600">B</text>
+    <line x1="225" y1="190" x2="365" y2="190" stroke="#334155"/><line x1="225" y1="190" x2="225" y2="64" stroke="#334155"/>
+    <text x="212" y="164">0</text><line x1="225" y1="160" x2="365" y2="160" stroke="#e5e7eb"/>
+    <polyline points="225,182 360,90" fill="none" stroke="#ef4444" stroke-width="3"/>
+    <!-- C -->
+    <rect x="390" y="34" width="175" height="180" rx="8" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="400" y="54" font-weight="600">C</text>
+    <line x1="415" y1="190" x2="555" y2="190" stroke="#334155"/><line x1="415" y1="190" x2="415" y2="64" stroke="#334155"/>
+    <text x="402" y="164">0</text><line x1="415" y1="160" x2="555" y2="160" stroke="#e5e7eb"/>
+    <polyline points="415,182 450,130 510,130 550,80" fill="none" stroke="#ef4444" stroke-width="3"/>
+    <!-- D -->
+    <rect x="580" y="34" width="175" height="180" rx="8" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="590" y="54" font-weight="600">D</text>
+    <line x1="605" y1="190" x2="745" y2="190" stroke="#334155"/><line x1="605" y1="190" x2="605" y2="64" stroke="#334155"/>
+    <text x="592" y="164">0</text><line x1="605" y1="160" x2="745" y2="160" stroke="#e5e7eb"/>
+    <polyline points="605,182 635,160 655,140 690,128 740,124" fill="none" stroke="#ef4444" stroke-width="3"/>
+  </g>
+</svg>
+<figcaption>A = 正解(0℃で平ら)、B = 平らにならない、C = 平らな温度がちがう、D = だんだんゆるやかになるだけ</figcaption>
+</figure>
+<p>不正解の3つは、よくある勘違いをもとに作る。</p>
+<table>
+  <tr><th>勘違いのタイプ</th><th>グラフの形</th><th>使うステージ</th></tr>
+  <tr><td>状態変化中も温度は上がり続ける</td><td>平らな部分がない直線</td><td>全ステージ</td></tr>
+  <tr><td>融点・沸点の温度を覚えていない</td><td>平らになる温度がちがう</td><td>全ステージ</td></tr>
+  <tr><td>量を増やす/強火にすると融点が上がる・下がる</td><td>平らな部分の温度が前のステージとちがう</td><td>4・5</td></tr>
+  <tr><td>だんだん温まりにくくなるだけ</td><td>カーブして平らに近づくが、はっきり止まらない</td><td>1〜3</td></tr>
+  <tr><td>冷やすと逆の形にならない</td><td>冷却なのに0℃で止まらない/上がる</td><td>6</td></tr>
+</table>
+<p>4つの並び順はステージごとにシャッフルする。</p>
+
+<h2>画面構成(実験中)</h2>
+<figure>
+<svg viewBox="0 0 760 380" role="img" aria-label="実験中の画面モックアップ" font-size="13">
+  <rect x="10" y="10" width="740" height="360" rx="8" fill="none" stroke="#8a94a6" stroke-width="1.25"/>
+  <text x="26" y="36" font-size="14" font-weight="600" fill="#1f2937">ステージ3  −20℃の氷 100g を加熱して、水が沸騰するまで</text>
+  <line x1="10" y1="50" x2="750" y2="50" stroke="#d5dae2"/>
+  <rect x="70" y="110" width="140" height="170" fill="#eef6ff" stroke="#64748b" stroke-width="1.5"/>
+  <g fill="#3b82f6">
+    <circle cx="95" cy="265" r="7"/><circle cx="115" cy="262" r="7"/><circle cx="135" cy="266" r="7"/><circle cx="155" cy="261" r="7"/><circle cx="175" cy="265" r="7"/><circle cx="192" cy="262" r="7"/>
+    <circle cx="105" cy="246" r="7"/><circle cx="127" cy="243" r="7"/><circle cx="150" cy="247" r="7"/><circle cx="172" cy="244" r="7"/>
+    <circle cx="140" cy="180" r="7"/><circle cx="100" cy="150" r="7"/><circle cx="185" cy="135" r="7"/>
+  </g>
+  <rect x="225" y="90" width="10" height="190" rx="5" fill="#fff" stroke="#64748b"/>
+  <rect x="227" y="150" width="6" height="128" fill="#ef4444"/>
+  <text x="242" y="155" fill="#ef4444" font-weight="600">100℃</text>
+  <path d="M110 300 q30 -30 60 0" fill="#f97316" opacity="0.8"/>
+  <text x="70" y="330" fill="#475569">状態: 液体 → 気体   質量 100g</text>
+  <rect x="60" y="62" width="190" height="34" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="70" y="84" fill="#92400e">熱は状態を変えるのに使われ中</text>
+  <line x1="390" y1="300" x2="720" y2="300" stroke="#334155"/>
+  <line x1="390" y1="300" x2="390" y2="70" stroke="#334155"/>
+  <text x="680" y="320" fill="#475569">時間[分]</text>
+  <text x="340" y="74" fill="#475569">温度[℃]</text>
+  <text x="360" y="104" fill="#475569">100</text><line x1="386" y1="100" x2="720" y2="100" stroke="#e5e7eb"/>
+  <text x="375" y="244" fill="#475569">0</text><line x1="386" y1="240" x2="720" y2="240" stroke="#e5e7eb"/>
+  <polyline points="390,268 430,240 520,240 600,100 700,100" fill="none" stroke="#94a3b8" stroke-width="3" stroke-dasharray="6 5"/>
+  <polyline points="390,268 410,240 480,240 590,100 640,100" fill="none" stroke="#ef4444" stroke-width="3"/>
+  <text x="560" y="140" fill="#94a3b8">点線 = 選んだ予想</text>
+  <text x="560" y="160" fill="#ef4444">赤線 = 実験結果</text>
+</svg>
+<figcaption>横向き:左に実験、右にグラフ。縦向き:上に実験、下にグラフ</figcaption>
+</figure>
+<p>問題文(お題・各段階の指示・ふりかえりの問題)は画面上部の帯に、今の段階のバッジと一緒に出す。下のパネルはボタンと答え合わせだけにする。文字は教室で読みやすいよう標準の約2倍(スマホなど狭い画面では約1.4倍)。</p>
+
+<h2>ステージ</h2>
+<table>
+  <tr><th>#</th><th>お題</th><th>融点・沸点について学べること</th></tr>
+  <tr><td>1</td><td>−20℃の氷を加熱(水が40℃になるまで)</td><td>0℃で平らになる = 水の融点</td></tr>
+  <tr><td>2</td><td>20℃の水を加熱(沸騰するまで)</td><td>100℃で平らになる = 水の沸点</td></tr>
+  <tr><td>3</td><td>−20℃の氷を沸騰するまで加熱</td><td>平らな部分が2回(融点と沸点)。その間は液体</td></tr>
+  <tr><td>4</td><td>ステージ1の氷を<strong>2倍の量</strong>に</td><td>平らな部分は長くなるが、融点は0℃のまま</td></tr>
+  <tr><td>5</td><td>ステージ1を<strong>強火</strong>に</td><td>傾きが急・平らな部分は短くなるが、融点は同じ</td></tr>
+  <tr><td>6</td><td>40℃の水を冷却(凍るまで)</td><td>冷やすときも0℃で平ら(液体→固体も融点と同じ温度)</td></tr>
+  <tr><td>7</td><td>固体のパルミチン酸を加熱</td><td>物質が変われば融点も変わる(約63℃)</td></tr>
+  <tr><td>8</td><td>液体のエタノールを湯せんで加熱</td><td>沸点は約78℃。水の100℃と比べる</td></tr>
+  <tr><td>応用A</td><td>なぞの固体Xを湯せんで加熱して融点を測り、物質カードから正体を当てる(答え:ナフタレン 約81℃)</td><td>融点で物質を見分けられる</td></tr>
+  <tr><td>応用B</td><td>なぞの液体Yを湯せんで加熱して沸点を測り、正体を当てる(答え:メタノール 約65℃)</td><td>沸点で物質を見分けられる</td></tr>
+  <tr><td>おまけ</td><td>水とエタノールの混合物を加熱</td><td>混合物は温度がはっきり平らにならない(決まった沸点がない)</td></tr>
+</table>
+<p class="note">「沸騰の平らな部分」は見やすさ優先で短く描く(実際は融解の約7倍の熱が要る)。ステージ3のふりかえりで「本当はもっと長い」と、実際の比率のグラフを並べて紹介する。</p>
+
+<h3>ふりかえり問題(各ステージ1問)の例</h3>
+<table>
+  <tr><th>ステージ</th><th>問題</th><th>正解</th></tr>
+  <tr><td>1</td><td>グラフが0℃で平らな間、ビーカーの中はどうなっている?</td><td>氷と水がまざっている(とけている途中)</td></tr>
+  <tr><td>2</td><td>100℃で平らな間、加えた熱は何に使われている?</td><td>水を水蒸気(気体)に変えること</td></tr>
+  <tr><td>3</td><td>50℃のとき、水は固体・液体・気体のどれ?</td><td>液体(融点0℃と沸点100℃の間)</td></tr>
+  <tr><td>4・5</td><td>氷の量(火の強さ)を変えると融点はどうなる?</td><td>変わらない</td></tr>
+  <tr><td>7</td><td>パルミチン酸を40℃にすると何の状態?</td><td>固体(融点63℃より低い)</td></tr>
+  <tr><td>8</td><td>90℃のお湯の中でエタノールはどうなる?</td><td>沸騰して気体になる(沸点78℃より高い)</td></tr>
+</table>
+
+<h2>評価(☆の付け方)</h2>
+<table>
+  <tr><th>☆</th><th>条件</th></tr>
+  <tr><td>☆1</td><td>予想のグラフを<strong>1回目で</strong>正しく選べた</td></tr>
+  <tr><td>☆2</td><td>結果のグラフから融点・沸点(どちらか+何℃か)を正しく読み取れた</td></tr>
+  <tr><td colspan="2">応用ステージは予想の代わりに「正体当て」:☆1 読み取り、☆2 正体を当てる、☆3 ふりかえり。混合物のステージは「平らな部分はない」と答えるのが正解</td></tr>
+  <tr><td>☆3</td><td>ふりかえり問題に正解した</td></tr>
+</table>
+<p>☆が足りなくても次へ進める(何度でもやり直し可)。ステージ選択画面に☆の合計を表示。</p>
+<h3>融点・沸点の図鑑</h3>
+<p>ステージをクリアするたびに、測った物質の融点・沸点を記録する。物質ごとに1行、温度の数直線の上で固体(青)・液体(緑)・気体(橙)の範囲を色分けして並べる。まだ測っていない値は「?」。応用ステージでは図鑑と物質カードをヒントに使える。</p>
+
+<h2>シミュレーションの考え方</h2>
+<ul>
+  <li>一定の火力で熱を加え続ける。状態変化していない間は温度が上がり、融点・沸点に達すると、物質全体が変わり終わるまで温度は一定。量を2倍にすると平らな時間も2倍、火力を2倍にすると半分になる。</li>
+  <li>沸騰の平らな部分の長さは見やすさ用に短縮する(ステージ3の紹介画面だけ実際の比率)。</li>
+  <li>粒子モデル:固体 = 規則正しく並んで小さく振動、液体 = くっついたまま動き回る、気体 = 速く飛び回り間隔が広い。状態変化中は2つの状態が混ざって描かれる。熱はビーカーの底と横の壁から出入りするので、とけるのもこおるのも固体のかたまりの底・横の外側から(上の面は空気に触れているだけなので最後)。</li>
+  <li>計算は <code>js/thermo.js</code>(DOMに依存しない純粋関数)にまとめ、<code>node --test</code> でテストする。4択の不正解グラフもここで条件から生成する。</li>
+</ul>
+
+<h2>決定事項(2026-11-23 回答)</h2>
+<table>
+  <tr><th>#</th><th>項目</th><th>決定</th></tr>
+  <tr><td>Q1</td><td>グラフの描き方</td><td>4つのグラフから選ぶ選択式</td></tr>
+  <tr><td>Q2</td><td>沸騰の平らな部分</td><td>見やすさ優先で短くし、「本当はもっと長い」と紹介する</td></tr>
+  <tr><td>Q3</td><td>混合物ステージ</td><td>おまけのステージとして入れる</td></tr>
+  <tr><td>Q4</td><td>ふりかえり問題</td><td>各ステージの後に1問</td></tr>
+  <tr><td>Q5</td><td>画面の向き</td><td>縦・横の両方に対応</td></tr>
+  <tr><td>Q6</td><td>グラフの目盛り</td><td>温度に数値の目盛りあり(時間は分)</td></tr>
+  <tr><td>Q7</td><td>応用ステージ(物質当て)</td><td>本編のあとに入れる(固体X・液体Yの2つに分ける)</td></tr>
+  <tr><td>Q8</td><td>読み取りの答え方</td><td>平らな部分をタップ→温度を±ボタンで合わせる</td></tr>
+  <tr><td>Q9</td><td>融点・沸点の図鑑</td><td>ステージをクリアするたびに記録(温度の数直線で表示)</td></tr>
+</table>
+
+<h2>未決事項</h2>
+<p>なし(2026-11-23 すべて合意)。</p>
+</body>
+</html>

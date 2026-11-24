@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Copyright (C) 2026 transpason — 無保証。詳細は LICENSE を参照。 -->
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>ねつとすがた ― 融点・沸点を見つけよう</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="hud">
+    <span id="hud-stage" class="hud-stage">ねつとすがた</span>
+    <span id="hud-steps" class="hud-steps"></span>
+    <div class="hud-buttons">
+      <button id="btn-zukan" class="hud-btn">図鑑</button>
+      <button id="btn-select" class="hud-btn">ステージ</button>
+    </div>
+  </header>
+  <section id="prompt" aria-live="polite"></section>
+
+  <main id="play">
+    <section id="lab" class="pane"><canvas id="lab-canvas"></canvas></section>
+    <section id="chart" class="pane">
+      <canvas id="graph"></canvas>
+      <div id="choices" hidden></div>
+    </section>
+    <section id="panel"></section>
+  </main>
+
+  <section id="overlay-title" class="overlay">
+    <div class="panel-box">
+      <h1>ねつとすがた</h1>
+      <p class="sub">― 融点・沸点を見つけよう ―</p>
+      <p>物質を温めたり冷やしたりすると、温度はどう変わる?<br>
+        グラフを<strong>予想</strong>して、<strong>実験</strong>で確かめて、<strong>融点・沸点</strong>を読み取ろう。</p>
+      <ol class="howto">
+        <li>お題を読んで、4つのグラフから予想を選ぶ</li>
+        <li>実験を見る(粒子のようすも見てみよう)</li>
+        <li>グラフの<b>平らな部分</b>をタップして、融点か沸点か・何℃かを答える</li>
+        <li>ふりかえりの問題に答える</li>
+      </ol>
+      <p class="hint">☆は「予想」「読み取り」「ふりかえり」で1つずつ。測った融点・沸点は図鑑にたまっていくよ。</p>
+      <div class="buttons">
+        <button id="btn-start" class="big">はじめる</button>
+        <button id="btn-title-select" class="big secondary">ステージを選ぶ</button>
+      </div>
+      <p class="legal">© 2026 transpason ・ <a href="https://github.com/transpason/game_heat_curve_quiz/blob/main/LICENSE" target="_blank" rel="noopener">GPL-3.0-or-later</a> ・ 無保証 ・ <a href="https://github.com/transpason/game_heat_curve_quiz" target="_blank" rel="noopener">ソースコード</a> ・ <a href="docs/design.html" target="_blank" rel="noopener">設計書</a></p>
+    </div>
+  </section>
+
+  <section id="overlay-select" class="overlay" hidden>
+    <div class="panel-box wide">
+      <h2>ステージを選ぶ <span id="star-total" class="star-total"></span></h2>
+      <div id="stage-grid"></div>
+      <div class="buttons"><button id="btn-select-close" class="big secondary">とじる</button></div>
+    </div>
+  </section>
+
+  <section id="overlay-zukan" class="overlay" hidden>
+    <div class="panel-box wide">
+      <h2>融点・沸点の図鑑</h2>
+      <p class="hint">ステージで測った融点・沸点が記録されるよ。スライダーで温度を変えると、それぞれの物質がその温度で何の状態かわかる。</p>
+      <canvas id="zukan-canvas"></canvas>
+      <label class="zukan-slider">温度 <input id="zukan-temp" type="range" min="-40" max="140" step="1" value="20"> <b id="zukan-temp-val">20℃</b></label>
+      <div class="buttons"><button id="btn-zukan-close" class="big secondary">とじる</button></div>
+    </div>
+  </section>
+
+  <script src="js/thermo.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
